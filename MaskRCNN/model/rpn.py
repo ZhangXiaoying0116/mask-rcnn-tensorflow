@@ -13,6 +13,7 @@ from tensorpack.tfutils.summary import add_moving_summary
 from config import config as cfg
 from model_box import clip_boxes
 from utils.mixed_precision import mixed_precision_scope
+from tensorflow import generate_bounding_box_proposals  # !!! xiaoying
 
 @layer_register(log_shape=True)
 @auto_reuse_variable_scope
@@ -38,12 +39,12 @@ def rpn_head(featuremap, channel, num_anchors, seed_gen, fp16=False):
 
     with mixed_precision_scope(mixed=fp16):
         with argscope(Conv2D, data_format='channels_first',
-                      kernel_initializer=tf.random_normal_initializer(stddev=0.01, seed=seed_gen.next())):
-            hidden = Conv2D('conv0', featuremap, channel, 3, activation=tf.nn.relu, seed=seed_gen.next())
+                      kernel_initializer=tf.random_normal_initializer(stddev=0.01, )):
+            hidden = Conv2D('conv0', featuremap, channel, 3, activation=tf.nn.relu, )
             # BS x NumChannel x H_feature x W_feature
-            label_logits = Conv2D('class', hidden, num_anchors, 1, seed=seed_gen.next())
+            label_logits = Conv2D('class', hidden, num_anchors, 1, )
             # BS x NA x H_feature x W_feature
-            box_logits = Conv2D('box', hidden, 4 * num_anchors, 1, seed=seed_gen.next())
+            box_logits = Conv2D('box', hidden, 4 * num_anchors, 1, )
             # BS x (NA*4) x H_feature x W_feature
 
             label_logits = tf.transpose(label_logits, [0, 2, 3, 1])  # BS x H_feature x W_feature x NA
@@ -185,6 +186,7 @@ def generate_fpn_proposals(multilevel_anchor_boxes,
     all_scores = []
     if cfg.FPN.PROPOSAL_MODE == 'Level':
         fpn_nms_topk = cfg.RPN.TRAIN_PER_LEVEL_NMS_TOPK*batch_size if training else cfg.RPN.TEST_PER_LEVEL_NMS_TOPK
+        fpn_nms_topk_post = cfg.RPN.TRAIN_POST_LEVEL_NMS_TOPK*batch_size if training else cfg.RPN.TEST_POST_LEVEL_NMS_TOPK # !!! xiaoying
         for lvl in range(num_lvl):
             with tf.name_scope(f'Lvl{lvl}'):
                 im_info = tf.cast(orig_images_hw, tf.float32)
@@ -201,13 +203,14 @@ def generate_fpn_proposals(multilevel_anchor_boxes,
                 #
                 # roi: (# boxes for a single level) x 5, the 5 colunms arranged as: batch_index, x_1, y_1, x_2, y_2
                 # rois_probs: 1-D, # boxes for a single level
-                rois, rois_probs = tf.generate_bounding_box_proposals(scores,
+                print("!!!!!scores.shape",scores.shape)
+                rois, rois_probs = generate_bounding_box_proposals(scores,  # !!! xiaoying
                                                                    bbox_deltas,
                                                                    im_info,
                                                                    single_level_anchor_boxes,
                                                                    spatial_scale=1.0 / cfg.FPN.ANCHOR_STRIDES[lvl],
                                                                    pre_nms_topn=fpn_nms_topk,
-                                                                   post_nms_topn=fpn_nms_topk,
+                                                                   post_nms_topn=fpn_nms_topk_post, #!!! xiaoying
                                                                    nms_threshold=cfg.RPN.PROPOSAL_NMS_THRESH,
                                                                    min_size=cfg.RPN.MIN_SIZE)
                 # rois_probs = print_runtime_shape(f'rois_probs, lvl {lvl}', rois_probs, prefix=bug_prefix)
@@ -258,6 +261,7 @@ def generate_fpn_proposals_topk_per_image(multilevel_anchor_boxes,
     all_scores = []
     if cfg.FPN.PROPOSAL_MODE == 'Level':
         fpn_nms_topk = cfg.RPN.TRAIN_PER_LEVEL_NMS_TOPK if training else cfg.RPN.TEST_PER_LEVEL_NMS_TOPK
+        fpn_nms_topk_post = cfg.RPN.TRAIN_POST_LEVEL_NMS_TOPK if training else cfg.RPN.TEST_POST_LEVEL_NMS_TOPK # !!! xiaoying
         boxes_list = []
         scores_list = []
 
@@ -278,14 +282,14 @@ def generate_fpn_proposals_topk_per_image(multilevel_anchor_boxes,
                     single_level_anchor_boxes = tf.reshape(single_level_anchor_boxes, (-1, 4))
 
                     # https://caffe2.ai/docs/operators-catalogue.html#generateproposals
-                    rois, rois_probs = tf.generate_bounding_box_proposals(scores,
+                    rois, rois_probs = generate_bounding_box_proposals(scores,  # !!! xiaoying
                                                                           bbox_deltas,
                                                                           im_info,
                                                                           single_level_anchor_boxes,
                                                                           spatial_scale=1.0 / cfg.FPN.ANCHOR_STRIDES[
                                                                               lvl],
                                                                           pre_nms_topn=fpn_nms_topk,
-                                                                          post_nms_topn=fpn_nms_topk,
+                                                                          post_nms_topn=fpn_nms_topk_post, # !!! xiaoying
                                                                           nms_threshold=cfg.RPN.PROPOSAL_NMS_THRESH,
                                                                           min_size=cfg.RPN.MIN_SIZE)
 

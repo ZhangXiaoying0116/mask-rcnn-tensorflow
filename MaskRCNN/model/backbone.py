@@ -136,7 +136,7 @@ def resnet_shortcut(l, n_out, stride, seed_gen, activation=tf.identity):
         if not cfg.MODE_FPN and stride == 2:
             l = l[:, :, :-1, :-1]
         return Conv2D('convshortcut', l, n_out, 1,
-                      strides=stride, activation=activation, seed=seed_gen.next())
+                      strides=stride, activation=activation)
     else:
         return l
 
@@ -146,20 +146,20 @@ def resnet_bottleneck(l, ch_out, stride, seed_gen):
     if cfg.BACKBONE.STRIDE_1X1:
         if stride == 2:
             l = l[:, :, :-1, :-1]
-        l = Conv2D('conv1', l, ch_out, 1, strides=stride, seed=seed_gen.next())
-        l = Conv2D('conv2', l, ch_out, 3, strides=1, seed=seed_gen.next())
+        l = Conv2D('conv1', l, ch_out, 1, strides=stride)
+        l = Conv2D('conv2', l, ch_out, 3, strides=1)
     else:
-        l = Conv2D('conv1', l, ch_out, 1, strides=1, seed=seed_gen.next())
+        l = Conv2D('conv1', l, ch_out, 1, strides=1)
         if stride == 2:
             l = tf.pad(l, [[0, 0], [0, 0], maybe_reverse_pad(0, 1), maybe_reverse_pad(0, 1)])
-            l = Conv2D('conv2', l, ch_out, 3, strides=2, padding='VALID', seed=seed_gen.next())
+            l = Conv2D('conv2', l, ch_out, 3, strides=2, padding='VALID')
         else:
-            l = Conv2D('conv2', l, ch_out, 3, strides=stride, seed=seed_gen.next())
+            l = Conv2D('conv2', l, ch_out, 3, strides=stride)
     if cfg.BACKBONE.NORM != 'None':
-        l = Conv2D('conv3', l, ch_out * 4, 1, activation=get_norm(zero_init=True), seed=seed_gen.next())
+        l = Conv2D('conv3', l, ch_out * 4, 1, activation=get_norm(zero_init=True))
     else:
         l = Conv2D('conv3', l, ch_out * 4, 1, activation=tf.identity,
-                   kernel_initializer=tf.constant_initializer(), seed=seed_gen.next())
+                   kernel_initializer=tf.constant_initializer())
     ret = l + resnet_shortcut(shortcut, ch_out * 4, stride, seed_gen=seed_gen, activation=get_norm(zero_init=False))
     return tf.nn.relu(ret, name='output')
 
@@ -225,7 +225,8 @@ def resnet_fpn_backbone(image, num_blocks, seed_gen, fp16=False):
                 [pad_base[0], pad_base[1] + pad_shape2d[0]],
                 [pad_base[0], pad_base[1] + pad_shape2d[1]]]))
             l.set_shape([None, chan, None, None])
-            l = Conv2D('conv0', l, 64, 7, strides=2, padding='VALID', seed=seed_gen.next())
+            # l = Conv2D('conv0', l, 64, 7, strides=2, padding='VALID', seed=seed_gen)
+            l = Conv2D('conv0', l, 64, 7, strides=2, padding='VALID')
             l = tf.pad(l, [[0, 0], [0, 0], maybe_reverse_pad(0, 1), maybe_reverse_pad(0, 1)])
             l = MaxPooling('pool0', l, 3, strides=2, padding='VALID')
         with backbone_scope(freeze=freeze_at > 1):

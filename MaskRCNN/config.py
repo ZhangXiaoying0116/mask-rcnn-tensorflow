@@ -78,21 +78,21 @@ _C = config     # short alias to avoid coding
 
 # mode flags ---------------------
 _C.TRAINER = 'replicated'  # options: 'horovod', 'replicated'
-_C.MODE_MASK = True        # FasterRCNN or MaskRCNN
+_C.MODE_MASK = False        # FasterRCNN or MaskRCNN  # !!! xiaoying
 _C.MODE_FPN = True
 
 # dataset -----------------------
-_C.DATA.BASEDIR = '/path/to/your/DATA/DIR'
+_C.DATA.BASEDIR = '/home/alg/xiaoying.zhang/0910/faster_rcnn_debug/tensorpack_v0.10.1_voc/voc2012_right_version' # !!! xiaoying
 # All TRAIN dataset will be concatenated for training.
-_C.DATA.TRAIN = ['train2014', 'valminusminival2014']   # i.e. trainval35k, AKA train2017
-# Each VAL dataset will be evaluated separately (instead of concatenated)
-_C.DATA.VAL = ('minival2014', )  # AKA val2017
+_C.DATA.TRAIN = ['voctrain2012']   # i.e. trainval35k, AKA train2017  # !!! xiaoying
+# Each VAL dataset will be evaluated separately (instead of concatenated)  # !!! xiaoying
+_C.DATA.VAL = ('vocval2012', )  # AKA val2017
 # This two config will be populated later by the dataset loader:
 _C.DATA.NUM_CATEGORY = 0  # without the background class (e.g., 80 for COCO)
 _C.DATA.CLASS_NAMES = []  # NUM_CLASS (NUM_CATEGORY+1) strings, the first is "BG".
 
 # basemodel ----------------------
-_C.BACKBONE.WEIGHTS = ''   # /path/to/weights.npz
+_C.BACKBONE.WEIGHTS = '/home/alg/xiaoying.zhang/0910/faster_rcnn_debug/tensorpack_v0.10.1_voc/tensorpack/examples/FasterRCNN_right_version_lr1e-3/pretrain_backbone/ImageNet-R50-AlignPadding.npz'   # /path/to/weights.npz  # !!! xiaoying
 _C.BACKBONE.RESNET_NUM_BLOCKS = [3, 4, 6, 3]     # for resnet50
 # RESNET_NUM_BLOCKS = [3, 4, 23, 3]    # for resnet101
 _C.BACKBONE.FREEZE_AFFINE = False   # do not train affine parameters inside norm layers
@@ -130,15 +130,15 @@ _C.TRAIN.STARTING_EPOCH = 1  # the first epoch to start with, useful to continue
 
 _C.TRAIN.LR_EPOCH_SCHEDULE = [(8, 0.1), (10, 0.01), (12, None)] # "1x" schedule in detectron
 _C.TRAIN.EVAL_PERIOD = 25  # period (epochs) to run evaluation
-_C.TRAIN.BATCH_SIZE_PER_GPU = 1
-_C.TRAIN.SEED = 1234
+_C.TRAIN.BATCH_SIZE_PER_GPU = 32 # !!! xiaoying
+_C.TRAIN.SEED = None #1234 # !!! xiaoying
 _C.TRAIN.GRADIENT_CLIP = 0 # set non-zero value to enable gradient clip, 0.36 is recommended for 32x4
 
 # preprocessing --------------------
 # Alternative old (worse & faster) setting: 600
-_C.PREPROC.TRAIN_SHORT_EDGE_SIZE = [800, 800]  # [min, max] to sample from
-_C.PREPROC.TEST_SHORT_EDGE_SIZE = 800
-_C.PREPROC.MAX_SIZE = 1333
+_C.PREPROC.TRAIN_SHORT_EDGE_SIZE = [512, 512]  # [min, max] to sample from  # !!! xiaoying
+_C.PREPROC.TEST_SHORT_EDGE_SIZE = 512#800  # !!! xiaoying
+_C.PREPROC.MAX_SIZE = 512 # !!! xiaoying
 # mean and std in RGB order.
 # Un-scaled version: [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
 _C.PREPROC.PIXEL_MEAN = [123.675, 116.28, 103.53]
@@ -174,7 +174,9 @@ _C.RPN.TEST_POST_NMS_TOPK = 1000   # if you encounter OOM in inference, set this
 # for FPN, #proposals per-level and #proposals after merging are (for now) the same
 # if FPN.PROPOSAL_MODE = 'Joint', these options have no effect
 _C.RPN.TRAIN_PER_LEVEL_NMS_TOPK = 2000
-_C.RPN.TEST_PER_LEVEL_NMS_TOPK = 1000
+_C.RPN.TRAIN_POST_LEVEL_NMS_TOPK = 2000
+_C.RPN.TEST_PER_LEVEL_NMS_TOPK = 300 # !!! xiaoying
+_C.RPN.TEST_POST_LEVEL_NMS_TOPK = 64 # !!! xiaoying
 _C.RPN.TOPK_PER_IMAGE = True
 _C.RPN.UNQUANTIZED_ANCHOR = True # From tensorpack https://github.com/tensorpack/tensorpack/commit/141ab53cc37dce728802803747584fc0fb82863b
 _C.RPN.SLOW_ACCURATE_MASK = True # If on, mask calculation will be slower but more accurate. From tensorpack https://github.com/tensorpack/tensorpack/commit/141ab53cc37dce728802803747584fc0fb82863b

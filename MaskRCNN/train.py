@@ -19,7 +19,7 @@ import subprocess
 import tensorpack.utils.viz as tpviz
 from tensorpack import *
 from tensorpack.tfutils.common import get_tf_version_tuple
-
+from tensorpack.tfutils.export import ModelExporter
 
 from dataset import DetectionDataset
 from config import finalize_configs, config as cfg
@@ -30,6 +30,8 @@ from performance import ThroughputTracker, humanize_float
 from model.generalized_rcnn import ResNetFPNModel
 from tensorpack.utils import fix_rng_seed
 
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"   # !!! xiaoying
 
 try:
     import horovod.tensorflow as hvd
@@ -113,9 +115,6 @@ def do_predict(pred_func, input_file):
     tpviz.interactive_imshow(viz)
 
 
-
-
-
 def log_launch_config(log_full_git_diff):
     def check_and_log(cmd):
         logger.info(cmd)
@@ -129,13 +128,14 @@ def log_launch_config(log_full_git_diff):
     check_and_log('env')
     check_and_log('ps -elf | grep mpirun')
 
-
-
+# !!! xiaoying | for create pb
+# python train.py --load ./train_log_bs32_300_64/ckpt/checkpoint --predict /home/alg/xiaoying.zhang/0910/tensorflow_models/models/research/object_detection/test_images/image1.jpg --output_pb ./train_log_bs32_300_64/ckpt/bs32_512_pre300_post64.pb
+ckpt_log_dir = 'train_log_bs32_300_64/'
 if __name__ == '__main__':
     start_time = time.time()
     parser = argparse.ArgumentParser()
-    parser.add_argument('--load', help='load a model for evaluation or training. Can overwrite BACKBONE.WEIGHTS')
-    parser.add_argument('--logdir', help='log directory', default='train_log/maskrcnn')
+    parser.add_argument('--load', help='load a model for evaluation or training. Can overwrite BACKBONE.WEIGHTS') #/home/alg/xiaoying.zhang/multibatch_2/mask-rcnn-tensorflow/MaskRCNN/train_log/ckpt
+    parser.add_argument('--logdir', help='log directory', default=ckpt_log_dir+'fasterrcnn_LEVEL_PRE300_POST64')
     parser.add_argument('--visualize', action='store_true', help='visualize intermediate results')
     parser.add_argument('--evaluate', help="Run evaluation. "
                                            "This argument is the path to the output json evaluation file")
@@ -144,11 +144,12 @@ if __name__ == '__main__':
     parser.add_argument('--config', help="A list of KEY=VALUE to overwrite those defined in config.py",
                         nargs='+')
     parser.add_argument('--fp16', help="Train backbone in FP16", action="store_true")
+    parser.add_argument('--output_pb', help='Save a model to .pb') # !!! xiaoying
 
     #################################################################################################################
     # Performance investigation arguments
-    parser.add_argument('--throughput_log_freq', help="In perf investigation mode, code will print throughput after every throughput_log_freq steps as well as after every epoch", type=int, default=100)
-    parser.add_argument('--images_per_epoch', help="Number of images in an epoch. = images_per_steps * steps_per_epoch (differs slightly from the total number of images).", type=int, default=120000)
+    parser.add_argument('--throughput_log_freq', help="In perf investigation mode, code will print throughput after every throughput_log_freq steps as well as after every epoch", type=int, default=10)
+    parser.add_argument('--images_per_epoch', help="Number of images in an epoch. = images_per_steps * steps_per_epoch (differs slightly from the total number of images).", type=int, default=64)
 
     parser.add_argument('--tfprof', help="Enable tf profiler", action="store_true")
     parser.add_argument('--tfprof_start_step', help="Step to enable tf profiling", type=int, default=15005)
@@ -156,11 +157,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--log_full_git_diff', help="Log the full git diff", action="store_false")
 
-
     #################################################################################################################
-
-
-
 
     if get_tf_version_tuple() < (1, 6):
         # https://github.com/tensorflow/tensorflow/issues/14657
@@ -172,8 +169,6 @@ if __name__ == '__main__':
 
     MODEL = ResNetFPNModel(args.fp16)
     DetectionDataset()  # initialize the config with information from our dataset
-
-
 
     if args.visualize or args.evaluate or args.predict:
         assert tf.test.is_gpu_available()
@@ -192,13 +187,12 @@ if __name__ == '__main__':
                 input_names=MODEL.get_inference_tensor_names()[0],
                 output_names=MODEL.get_inference_tensor_names()[1])
             if args.predict:
+                if args.output_pb: # !!! xiaoying
+                    ModelExporter(predcfg).export_compact(args.output_pb) # !!! xiaoying optimize=False
                 do_predict(OfflinePredictor(predcfg), args.predict)
             elif args.evaluate:
                 assert args.evaluate.endswith('.json'), args.evaluate
                 do_evaluate(predcfg, args.evaluate)
-
-
-
     else:
 
         is_horovod = cfg.TRAINER == 'horovod'
@@ -255,8 +249,7 @@ if __name__ == '__main__':
 
         callbacks = [
             PeriodicCallback(
-                ModelSaver(max_to_keep=10, keep_checkpoint_every_n_hours=1),
-                every_k_epochs=20),
+                ModelSaver(max_to_keep=2,checkpoint_dir = ckpt_log_dir+'ckpt', keep_checkpoint_every_n_hours=0.01),every_k_epochs=1), # !!! xiaoying | every_k_epochs step to save ckpt
             # linear warmup
             ScheduledHyperParamSetter(
                 'learning_rate', warmup_schedule, interp='linear', step_based=True),

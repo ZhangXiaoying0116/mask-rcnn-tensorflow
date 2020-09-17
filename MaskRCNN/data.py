@@ -398,7 +398,7 @@ def get_train_dataflow():
     ds = DataFromList(roidbs, shuffle=True)
 
     aug = imgaug.AugmentorList(
-        [CustomResize(cfg.PREPROC.TRAIN_SHORT_EDGE_SIZE, cfg.PREPROC.MAX_SIZE),
+        [#CustomResize(cfg.PREPROC.TRAIN_SHORT_EDGE_SIZE, cfg.PREPROC.MAX_SIZE), # !!! xiaoying
          imgaug.Flip(horiz=True)])
 
     def preprocess(roidb):
@@ -407,6 +407,7 @@ def get_train_dataflow():
         im = cv2.imread(fname, cv2.IMREAD_COLOR)
         assert im is not None, fname
         im = im.astype('float32')
+        im = cv2.resize(im, (512,512)) # !!! xiaoying
         # assume floatbox as input
         assert boxes.dtype == np.float32, "Loader has to return floating point boxes!"
 
@@ -552,10 +553,10 @@ def get_batch_train_dataflow(batch_size):
 
 
     aug = imgaug.AugmentorList(
-         [CustomResize(cfg.PREPROC.TRAIN_SHORT_EDGE_SIZE, cfg.PREPROC.MAX_SIZE),
+         [#(cfg.PREPROC.TRAIN_SHORT_EDGE_SIZE, cfg.PREPROC.MAX_SIZE),
           imgaug.Flip(horiz=True)])
 
-    # aug = imgaug.AugmentorList([CustomResize(cfg.PREPROC.TRAIN_SHORT_EDGE_SIZE, cfg.PREPROC.MAX_SIZE)])
+    # aug = imgaug.AugmentorList([CustomResize(cfg.PREPROC.TRAIN_SHORT_EDGE_SIZE, cfg.PREPROC.MAX_SIZE)]) # !!! xiaoying
 
 
     def preprocess(roidb_batch):
@@ -564,6 +565,7 @@ def get_batch_train_dataflow(batch_size):
             fname, boxes, klass, is_crowd = roidb['file_name'], roidb['boxes'], roidb['class'], roidb['is_crowd']
             boxes = np.copy(boxes)
             im = cv2.imread(fname, cv2.IMREAD_COLOR)
+            im = cv2.resize(im, (512,512)) # !!! xiaoying
             assert im is not None, fname
             im = im.astype('float32')
             # assume floatbox as input
@@ -803,7 +805,7 @@ def get_batched_eval_dataflow(name, shard=0, num_shards=1, batch_size=1):
         return [[cv2.imread(inp[0], cv2.IMREAD_COLOR), inp[1]] for inp in inputs]
 
     def resize_images(inputs):
-        resizer = CustomResize(cfg.PREPROC.TEST_SHORT_EDGE_SIZE, cfg.PREPROC.MAX_SIZE)
+        resizer = CustomResize(cfg.PREPROC.TEST_SHORT_EDGE_SIZE, cfg.PREPROC.MAX_SIZE) # !!! xiaoying
         resized_imgs = [resizer.augment(inp[0]) for inp in inputs]
         org_shapes = [inp[0].shape for inp in inputs]
         scales = [np.sqrt(rimg.shape[0] * 1.0 / org_shape[0] * rimg.shape[1] / org_shape[1]) for rimg, org_shape in zip(resized_imgs, org_shapes)]

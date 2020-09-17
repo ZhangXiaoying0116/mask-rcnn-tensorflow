@@ -100,6 +100,7 @@ class DetectionModel(ModelDesc):
         image = self.preprocess(inputs['images'])     # NCHW
 
         seed_gen = SeedGenerator(cfg.TRAIN.SEED)
+        # seed_gen = SeedGenerator(1234)#xiaoying.zhang
 
         features = self.backbone(image, seed_gen)
 
@@ -124,9 +125,9 @@ class ResNetFPNModel(DetectionModel):
     def inputs(self):
 
         ret = [
-            tf.placeholder(tf.string, (None,), 'filenames'), # N length vector of filenames
-            tf.placeholder(tf.float32, (None, None, None, 3), 'images'),  # N x H x W x C
-            tf.placeholder(tf.int32, (None, 3), 'orig_image_dims')  # N x 3(image dims - hwc)
+            tf.placeholder(tf.string, (32,), 'filenames'), # N length vector of filenames # !!! xiaoying
+            tf.placeholder(tf.float32, (32, 512, 512, 3), 'images'),  # N x H x W x C # !!! xiaoying
+            tf.placeholder(tf.int32, (32, 3), 'orig_image_dims')  # N x 3(image dims - hwc) # !!! xiaoying
         ]
         num_anchors = len(cfg.RPN.ANCHOR_RATIOS)
         for k in range(len(cfg.FPN.ANCHOR_STRIDES)):
